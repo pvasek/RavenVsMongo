@@ -30,7 +30,7 @@ Mongo: `AsQueryable().Where(i => i.CategoryId == categoryId).ToList()`
 
 Write Items
 -----------
-Writes 1000 generated items to the DB. Raven test use bulk insert feature!
+Writes 1000 generated items to the DB. **Raven test use bulk insert feature!**
 
 Raven: `BulkInsert.Store(item)`
 
