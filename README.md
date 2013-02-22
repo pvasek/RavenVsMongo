@@ -45,6 +45,7 @@ The test client is running on the same machine as the server.
 ### MongoDB
 - version 2.2.2
 - run as service
+- journal: true
 
 ### RavenDB
 - build 2261
