@@ -45,7 +45,7 @@ Results
 ### RavenDB
 - build 2261
 - run as service
-- folliwing settings: HttpCompression: true, AnonymousAccess: None
+- following settings: HttpCompression: true, AnonymousAccess: None
 
 ```c#
 documentStore.JsonRequestFactory.ConfigureRequest += (sender, e) =>
