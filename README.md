@@ -31,7 +31,7 @@ Raven: `BulkInsert.Store(item)`
 
 Mongo: `Save(item)`
 
-Set-up and Results
+Set-up
 -------
 There is just one entity/document Person. This includes property mostly for making 
 document big enough. Except the CotagoryId property which is used also for filtering.
@@ -62,5 +62,6 @@ documentStore.JsonRequestFactory.ConfigureRequest += (sender, e) =>
 ### Test machine:
 Windows 7 64-bit, 8GB RAM, i72720QM 2.2GHz, SSD
 
-Results can be found here:
+Results
+-------
 https://docs.google.com/spreadsheet/ccc?key=0AldlZRSYFPNbdEZmaDlrQ0ZPd3BFTWpmMUdtSVpmUlE&usp=sharing
