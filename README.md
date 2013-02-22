@@ -1,8 +1,12 @@
 Raven - Mongo (basic performance comparison)
 ============
-This is a simple test comparing basic write/read performance of RavenDB and MongoDB in connection to the document size.
-There is just one entity/document Person. This includes property mostly for making document big enough. Except the CotagoryId property which is used also for filtering.
-There is 1000 person generated in 10 categories so it is quite small data set. The generated data try to be more realistic therefore the document size is just estimate that can differ a little bit.
+This is a simple test comparing basic write/read performance of RavenDB and MongoDB 
+in connection to the document size.
+There is just one entity/document Person. This includes property mostly for making 
+document big enough. Except the CotagoryId property which is used also for filtering.
+There is 1000 person generated in 10 categories so it is quite small data set. 
+The generated data try to be more realistic therefore the document sizes are just 
+estimates the real size can be a little bit different.
 
 Motivation
 ----------
@@ -34,13 +38,14 @@ Mongo: `Save(item)`
 
 Results
 -------
-*Test machine:*
+### MongoDB
+- version 2.2.2
 
-Windows 7 64-bit, 8GB RAM, i72720QM 2.2GHz, SSD
+### RavenDB
+- build 2261
+- run as service.
+- folliwing settings:
 
-MongoDB, RavenDB run as service.
-
-*RavenDB settings:*
 ```c#
 documentStore.JsonRequestFactory.ConfigureRequest += (sender, e) =>
 {
@@ -48,5 +53,9 @@ documentStore.JsonRequestFactory.ConfigureRequest += (sender, e) =>
     e.Request.PreAuthenticate = true;
 };
 ```
+
+### Test machine:
+Windows 7 64-bit, 8GB RAM, i72720QM 2.2GHz, SSD
+
 Results can be found here:
 https://docs.google.com/spreadsheet/ccc?key=0AldlZRSYFPNbdEZmaDlrQ0ZPd3BFTWpmMUdtSVpmUlE&usp=sharing
