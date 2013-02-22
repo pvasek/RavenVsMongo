@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.IdGenerators;
 using MongoDB.Driver;
@@ -52,17 +53,16 @@ namespace RavenVsMongo
                 var generatingTotalTime = 0L;
                 foreach (var chunkSize in ChunkUtils.GetChunks(generateCount.Value, bulkSize.Value))
                 {
-                    var items = Enumerable.Range(0, chunkSize).Select(PersonGenerator.Create).ToList();
-
                     time.Restart();
                     for (var i = 0; i < chunkSize; i++)
                     {
-                        collection.Save(items[i]);
+                        var item = PersonGenerator.Create(i);
+                        collection.Save(item);
+                        generatedIds.Add(item.Id);
                     }
                     time.Stop();
                     generatingTotalTime += time.ElapsedMilliseconds;
                     totalRecords += chunkSize;
-                    generatedIds = items.Select(i => i.Id).ToList();
 
                     Console.WriteLine("Written {0} total: {1} records in: {2} ms", chunkSize, totalRecords,
                                       time.ElapsedMilliseconds);
@@ -71,6 +71,8 @@ namespace RavenVsMongo
                 result.Write.TotalMs = generatingTotalTime;
                 Console.WriteLine("Writing total time: {0} ms, avg item: {1} ms", generatingTotalTime,
                                   generatingTotalTime / generateCount);
+
+                Thread.Sleep(TestSettings.WaitForRebuildIndexesMs);
             }
 
             List<string> ids;

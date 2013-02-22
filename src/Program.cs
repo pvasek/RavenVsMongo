@@ -7,8 +7,21 @@ namespace RavenVsMongo
 {
     class Program
     {
-        private static void Main(string[] args)
+        public static void Main(string[] args)
         {
+            NConsoler.Consolery.Run(typeof(Program), args);            
+        }
+
+        [NConsoler.Action]
+        public static void Run(
+            [NConsoler.Optional("Both", Description = "What you want to test: Both, Raven, Mongo")] string testMode,
+            [NConsoler.Optional(1000, Description = "Number of items that should be generated")] int itemsCount,
+            [NConsoler.Optional(30000, Description = "Wait after generating items in ms (time for rebuilding indexes)")] int waitAfterGeneratingMs)
+        {
+            TestSettings.WaitForRebuildIndexesMs = waitAfterGeneratingMs;
+            TestSettings.TestMode = (TestMode)Enum.Parse(typeof(TestMode), testMode);
+            TestSettings.GenerateItemsCount = itemsCount;
+
             // 100 ~ 51kB, 250 ~ 122kB, 500 ~ 239kB, 1000 ~ 475kB, 1500 ~ 710kB - document size, size ~ 4.22KB + count*0.46
             var list = new List<Result>();
             list.Add(RunRound(0));
@@ -31,8 +44,14 @@ namespace RavenVsMongo
             PrintHeader();
             foreach (var result in list)
             {
-                PrintLine(result.DocumentSize, result.Raven, "Raven");
-                PrintLine(result.DocumentSize, result.Mongo, "Mongo");
+                if (result.Raven != null)
+                {
+                    PrintLine(result.DocumentSize, result.Raven, "Raven");
+                }
+                if (result.Mongo != null)
+                {
+                    PrintLine(result.DocumentSize, result.Mongo, "Mongo");
+                }
             }
         }
 
@@ -64,19 +83,29 @@ namespace RavenVsMongo
 
         private static Result RunRound(int words)
         {
-            
-            Console.WriteLine("RUNNING ROUND - {0} ##################################################", words);
-            PersonGenerator.TextPropertyWordCount = words;// 100 ~ 51kB, 250 ~ 122kB, 500 ~ 239kB, 1000 ~ 475kB, 1500 ~ 710kB - document size
-            Console.WriteLine("RAVEN #########");
-
-            GC.Collect();
-            var ravenResult = RavenTest.Run(readCount: 500, generateCount: 1000, bulkSize: 5000);
-
             Console.WriteLine();
-            Console.WriteLine("MONGO #########");
+            Console.WriteLine("RUNNING ROUND - {0} ##################################################", words);
+            Console.WriteLine();
 
-            GC.Collect();
-            var mongoResult = MongoTest.Run(readCount: 500, generateCount: 1000, bulkSize: 5000);
+            PersonGenerator.TextPropertyWordCount = words;// 100 ~ 51kB, 250 ~ 122kB, 500 ~ 239kB, 1000 ~ 475kB, 1500 ~ 710kB - document size
+            TestResultSet ravenResult = null;
+            if (TestSettings.TestRaven)
+            {
+                Console.WriteLine("RAVEN #########");
+
+                GC.Collect();
+                ravenResult = RavenTest.Run(readCount: 500, generateCount: TestSettings.GenerateItemsCount, bulkSize: 5000);
+            }
+
+            TestResultSet mongoResult = null;
+            if (TestSettings.TestMongo)
+            {
+                Console.WriteLine();
+                Console.WriteLine("MONGO #########");
+
+                GC.Collect();
+                mongoResult = MongoTest.Run(readCount: 500, generateCount: TestSettings.GenerateItemsCount, bulkSize: 5000);
+            }
             return new Result {WordCount = words, Raven = ravenResult, Mongo = mongoResult};
         }
 

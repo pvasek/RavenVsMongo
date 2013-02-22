@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using Raven.Abstractions.Data;
 using Raven.Client;
 using Raven.Client.Document;
@@ -51,19 +52,20 @@ namespace RavenVsMongo
 
                 foreach (var chunkSize in ChunkUtils.GetChunks(generateCount.Value, bulkSize.Value))
                 {
-                    var items = Enumerable.Range(0, chunkSize).Select(PersonGenerator.Create).ToList();                    
+                    //var items = Enumerable.Range(0, chunkSize).Select(PersonGenerator.Create).ToList();                    
 
                     time.Restart();
                     using (var bulkInsert = documentStore.BulkInsert("test"))
                     {
                         for (var i = 0; i < chunkSize; i++)
                         {
-                            bulkInsert.Store(items[i]);
+                            var item = PersonGenerator.Create(i);
+                            bulkInsert.Store(item);
+                            generatedIds.Add(item.Id);
                         }
                     }
                     time.Stop();
                     generatingTotalTime += time.ElapsedMilliseconds;
-                    generatedIds = items.Select(i => i.Id).ToList();
 
                     totalRecords += chunkSize;
                     Console.WriteLine("Written {0} total: {1} records in: {2} ms", chunkSize, totalRecords,
@@ -73,6 +75,9 @@ namespace RavenVsMongo
                 result.Write.TotalMs = generatingTotalTime;
                 Console.WriteLine("Writing total time: {0} ms, avg item: {1} ms", generatingTotalTime,
                                   generatingTotalTime / generateCount);
+
+                Console.WriteLine("Waiting for rebuilding indexes...");
+                Thread.Sleep(TestSettings.WaitForRebuildIndexesMs);
                 
             }
             #endregion
@@ -102,7 +107,8 @@ namespace RavenVsMongo
                 totalTime.Restart();
                 foreach (var id in ids)
                 {
-                    var person = session.Load<Person>(id);
+                    //var person = session.Load<Person>(id);
+                    var person = documentStore.DatabaseCommands.Get(id);
                     if (person == null)
                         throw new ArgumentException("Id doesn't exists");
                     //Console.WriteLine(person.LastName);
