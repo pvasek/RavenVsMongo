@@ -40,11 +40,12 @@ Results
 -------
 ### MongoDB
 - version 2.2.2
+- run as service
 
 ### RavenDB
 - build 2261
-- run as service.
-- folliwing settings:
+- run as service
+- folliwing settings: HttpCompression: true, AnonymousAccess: None
 
 ```c#
 documentStore.JsonRequestFactory.ConfigureRequest += (sender, e) =>
