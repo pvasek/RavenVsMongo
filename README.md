@@ -66,3 +66,9 @@ Windows 7 64-bit, 8GB RAM, i72720QM 2.2GHz, SSD
 Results
 -------
 https://docs.google.com/spreadsheet/ccc?key=0AldlZRSYFPNbdEZmaDlrQ0ZPd3BFTWpmMUdtSVpmUlE&usp=sharing
+
+Change log
+----------
+Based on feedback from ravendb group the following has been changed:
+- tests for mongo/raven can be run separately and they are in the results
+- there is a wait after generating items to give a time for DB to build indexes
