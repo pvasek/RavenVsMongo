@@ -11,51 +11,36 @@ namespace RavenVsMongo.Utils
 {
     public static class PersonGenerator
     {
-        public static int TextPropertyWordCount = 100;
+        public static int ItemSizeKb = 100;
 
         static PersonGenerator()
         {
             _names = File.ReadAllText("names.json").FromJson<Names>();
+            var serializer = new JsonSerializer<Person>();
+            _emptySize = serializer.SerializeToString(new Person()).Length;
         }
 
-        private static readonly string[] _words = @"the be to of and in that have it for not on with he as you do at this but his by from they we say her she or an will my one all would there their what so up out if about who get which go me when make can like time no just him know take people into year your good some could them see other than then now look only come its over think also back after use two how our work first well way even new want because any these give day most us"
-            .Split(' ');
-
         private static readonly Random _random = new Random();
-        private static readonly PropertyInfo[] _properties = typeof(Person).GetProperties(BindingFlags.Public | BindingFlags.Instance);
         private static readonly Names _names;
+        private static readonly int _emptySize;
 
-        public static Person Create(int counter)
+        public static Person Create()
         {
             var result = new Person();
-            foreach (var prop in _properties.Where(i => i.PropertyType == typeof(string)))
-            {
-                prop.SetValue(result, GetRandomText(_random, TextPropertyWordCount), null);
-            }
             result.Id = null;
             result.CategoryId = "Category" + _random.Next(10).ToString();
             result.Gender = (GenderType) _random.Next(1);
             var fullName = _names.GetName(_random, result.Gender);
             result.FirstName = fullName.FirstName;
             result.LastName = fullName.LastName;
+            result.DataLoad = GenerateText(ItemSizeKb);
             return result;
         }
 
-        public static string GetRandomText(Random random, int wordCount)
+        public static string GenerateText(int sizeKb)
         {
-            if (wordCount == 0)
-                return "";
-
-            var sb = new StringBuilder();
-            var actualWordCount = 0;
-            while (actualWordCount < wordCount)
-            {
-                sb.Append(" ");
-                sb.Append(_words[random.Next(_words.Count())]);
-                actualWordCount++;
-            }
-            sb.Remove(0, 1);
-            return sb.ToString();
+            var sizeBytes = sizeKb*1024 - _emptySize;
+            return "".PadRight(sizeBytes, 'a');
         }
     }
 }

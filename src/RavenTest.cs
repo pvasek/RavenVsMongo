@@ -22,8 +22,10 @@ namespace RavenVsMongo
             var documentStore = new DocumentStore { ConnectionStringName = "Raven"};
             documentStore.JsonRequestFactory.ConfigureRequest += (sender, e) =>
             {
-                ((System.Net.HttpWebRequest)e.Request).UnsafeAuthenticatedConnectionSharing = true;
-                e.Request.PreAuthenticate = true;
+                var httpWebRequest = ((System.Net.HttpWebRequest) e.Request);
+                httpWebRequest.UnsafeAuthenticatedConnectionSharing = true;
+                httpWebRequest.PreAuthenticate = true;
+                httpWebRequest.KeepAlive = true;
             };
 
             using (Profiler.Start("Initializing store"))
@@ -59,7 +61,7 @@ namespace RavenVsMongo
                     {
                         for (var i = 0; i < chunkSize; i++)
                         {
-                            var item = PersonGenerator.Create(i);
+                            var item = PersonGenerator.Create();
                             bulkInsert.Store(item);
                             generatedIds.Add(item.Id);
                         }
@@ -82,11 +84,11 @@ namespace RavenVsMongo
             }
             #endregion
 
+            List<string> ids;
             using (var session = documentStore.OpenSession())
             {
                 session.Advanced.MaxNumberOfRequestsPerSession = 100000;
 
-                List<string> ids;
                 if (generatedIds.Count == 0)
                 {
                     ids = Profiler.Measure("Reads ids", () =>
@@ -107,8 +109,8 @@ namespace RavenVsMongo
                 totalTime.Restart();
                 foreach (var id in ids)
                 {
-                    //var person = session.Load<Person>(id);
-                    var person = documentStore.DatabaseCommands.Get(id);
+                    var person = session.Load<Person>(id);
+                    //var person = documentStore.DatabaseCommands.Get(id);
                     if (person == null)
                         throw new ArgumentException("Id doesn't exists");
                     //Console.WriteLine(person.LastName);
@@ -116,13 +118,32 @@ namespace RavenVsMongo
                 totalTime.Stop();
                 result.Read.Count = readCount;
                 result.Read.TotalMs = totalTime.ElapsedMilliseconds;
-                Console.WriteLine("Total time: {0} ms, avg item: {1} ms, #records: {2}", totalTime.ElapsedMilliseconds, totalTime.ElapsedMilliseconds / readCount, ids.Count);
+                Console.WriteLine("Reading total time: {0} ms, avg item: {1} ms, #records: {2}", totalTime.ElapsedMilliseconds, totalTime.ElapsedMilliseconds / readCount, ids.Count);
+            }
+
+            using (var session = documentStore.OpenSession())
+            {
+                session.Advanced.MaxNumberOfRequestsPerSession = 100000;
+                totalTime.Restart();
+                foreach (var id in ids)
+                {
+                    var person = session.Load<Person>(id);
+                    //var person = documentStore.DatabaseCommands.Get(id);
+                    if (person == null)
+                        throw new ArgumentException("Id doesn't exists");
+                    //Console.WriteLine(person.LastName);
+                }
+                totalTime.Stop();
+                result.ReadRepeated.Count = readCount;
+                result.ReadRepeated.TotalMs = totalTime.ElapsedMilliseconds;
+                Console.WriteLine("Reading repeated total time: {0} ms, avg item: {1} ms, #records: {2}", totalTime.ElapsedMilliseconds, totalTime.ElapsedMilliseconds / readCount, ids.Count);
+
             }
 
             using (var session = documentStore.OpenSession())
             {
                 session.Advanced.MaxNumberOfRequestsPerSession = 5000;
-                for (var index = 0; index < 5; index++)
+                for (var index = 0; index < TestSettings.NumberOfCategoriesTested; index++)
                 {
                     var category = "Category" + index;
                     time.Restart();

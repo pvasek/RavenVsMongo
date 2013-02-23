@@ -56,7 +56,7 @@ namespace RavenVsMongo
                     time.Restart();
                     for (var i = 0; i < chunkSize; i++)
                     {
-                        var item = PersonGenerator.Create(i);
+                        var item = PersonGenerator.Create();
                         collection.Save(item);
                         generatedIds.Add(item.Id);
                     }
@@ -108,7 +108,22 @@ namespace RavenVsMongo
             result.Read.TotalMs = totalTime.ElapsedMilliseconds;
             Console.WriteLine("Reading total time: {0} ms avg: {1} ms for #records: {2}", totalTime.ElapsedMilliseconds, totalTime.ElapsedMilliseconds / (decimal)ids.Count, ids.Count);
 
-            for (var index = 0; index < 5; index++)
+            var collection2 = db.GetCollection<Person>("Person");
+            totalTime.Restart();
+            foreach (var id in ids)
+            {
+                var person = collection2.FindOneById(id);
+                if (person == null)
+                    throw new ArgumentException("Id doesn't exist.");
+                //Console.WriteLine(person.LastName);
+            }
+            totalTime.Stop();
+            result.ReadRepeated.Count = readCount;
+            result.ReadRepeated.TotalMs = totalTime.ElapsedMilliseconds;
+            Console.WriteLine("Reading repeated total time: {0} ms avg: {1} ms for #records: {2}", totalTime.ElapsedMilliseconds, totalTime.ElapsedMilliseconds / (decimal)ids.Count, ids.Count);
+
+
+            for (var index = 0; index < TestSettings.NumberOfCategoriesTested; index++)
             {
                 var category = "Category" + index;
                 time.Restart();
