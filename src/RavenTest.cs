@@ -85,24 +85,40 @@ namespace RavenVsMongo
             }
             #endregion
 
-            List<string> ids;
-            using (var session = documentStore.OpenSession())
+            List<string> ids = new List<string>();
+            int start = 0;
+            while (true)
             {
-                session.Advanced.MaxNumberOfRequestsPerSession = 100000;
-
-                if (generatedIds.Count == 0)
+                var resultIds = documentStore.DatabaseCommands.Query("PersonList", new IndexQuery
                 {
-                    ids = Profiler.Measure("Reads ids", () =>
-                                                            session.Query<Person>("PersonList")
-                                                                   .Select(i => i.Id)
-                                                                   .Take(readCount)
-                                                                   .ToList());
-                }
-                else
-                {
-                    ids = generatedIds;
-                }
+                    FieldsToFetch = new[] { Constants.DocumentIdFieldName },
+                    PageSize = 1024,
+                    Start = start
+                }, null);
+                if (resultIds.Results.Count == 0)
+                    break;
+                start += resultIds.Results.Count;
+                ids.AddRange(resultIds.Results.Select(x => x.Value<string>(Constants.DocumentIdFieldName)));
+            }
+            //using (var session = documentStore.OpenSession())
+            //{
+            //    session.Advanced.MaxNumberOfRequestsPerSession = 100000;
 
+            //    if (generatedIds.Count == 0)
+            //    {
+            //        ids = Profiler.Measure("Reads ids", () =>
+            //                                            session.Query<Person>("PersonList")
+            //                                                   .Select(i => i.Id)
+            //                                                   .Take(readCount)
+            //                                                   .ToList());
+            //    }
+            //    else
+            //    {
+            //        ids = generatedIds;
+            //    }
+            //}
+            //using (var session = documentStore.OpenSession())
+            {
                 Console.WriteLine("Reading count: {0}, ids.count: {1}", readCount, ids.Count);
                 
                 ids = ids.TakeRandom().ToList();
@@ -110,7 +126,7 @@ namespace RavenVsMongo
                 totalTime.Restart();
                 foreach (var id in ids)
                 {
-                    var person = session.Load<Person>(id);
+                    var person = documentStore.DatabaseCommands.Get(id);
                     //var person = documentStore.DatabaseCommands.Get(id);
                     if (person == null)
                         throw new ArgumentException("Id doesn't exists");
@@ -168,7 +184,7 @@ namespace RavenVsMongo
             documentStore.DatabaseCommands.ForSystemDatabase().Delete("Raven/Databases/" + databaseName, null);
             var dbDir = Path.Combine(ConfigurationManager.AppSettings["RavenDbPath"], databaseName);
             documentStore.Dispose();
-            for (var i = 0; i < 20; i++)
+            for (var i = 0; i < 2; i++)
             {
                 Thread.Sleep(5000);
                 try
