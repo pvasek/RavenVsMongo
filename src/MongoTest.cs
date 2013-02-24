@@ -89,33 +89,11 @@ namespace RavenVsMongo
             
             ids = ids.TakeRandom().ToList();
 
-            totalTime.Restart();
-            foreach (var id in ids)
-            {
-                var person = collection.FindOneById(id);
-                if (person == null)
-                    throw new ArgumentException("Id doesn't exist.");
-                //Console.WriteLine(person.LastName);
-            }
-            totalTime.Stop();
-            result.Read.Count = readCount;
-            result.Read.TotalMs = totalTime.ElapsedMilliseconds;
-            Console.WriteLine("Reading total time: {0} ms avg: {1} ms for #records: {2}", totalTime.ElapsedMilliseconds, totalTime.ElapsedMilliseconds / (decimal)ids.Count, ids.Count);
-
-            var collection2 = db.GetCollection<Person>("Person");
-            totalTime.Restart();
-            foreach (var id in ids)
-            {
-                var person = collection2.FindOneById(id);
-                if (person == null)
-                    throw new ArgumentException("Id doesn't exist.");
-                //Console.WriteLine(person.LastName);
-            }
-            totalTime.Stop();
-            result.ReadRepeated.Count = readCount;
-            result.ReadRepeated.TotalMs = totalTime.ElapsedMilliseconds;
-            Console.WriteLine("Reading repeated total time: {0} ms avg: {1} ms for #records: {2}", totalTime.ElapsedMilliseconds, totalTime.ElapsedMilliseconds / (decimal)ids.Count, ids.Count);
-
+            result.Read1 = ReadItemsById(collection, readCount, ids);
+            TestSettings.PauseBetweenReads();
+            result.Read2 = ReadItemsById(db.GetCollection<Person>("Person"), readCount, ids);            
+            TestSettings.PauseBetweenReads();
+            result.Read3 = ReadItemsById(db.GetCollection<Person>("Person"), readCount, ids);            
 
             for (var index = 0; index < TestSettings.NumberOfCategoriesTested; index++)
             {
@@ -131,6 +109,23 @@ namespace RavenVsMongo
             client.GetServer().DropDatabase(databaseName);
 
             return result;
-        } 
+        }
+
+        private static TestResult ReadItemsById(MongoCollection<Person> collection, int readCount, List<string> ids)
+        {
+            var time = Stopwatch.StartNew();
+            foreach (var id in ids)
+            {
+                var person = collection.FindOneById(id);
+                if (person == null)
+                    throw new ArgumentException("Id doesn't exist.");
+                //Console.WriteLine(person.LastName);
+            }
+            time.Stop();
+            var result = new TestResult { Count = readCount, TotalMs = time.ElapsedMilliseconds };
+            Console.WriteLine("Reading total time: {0} ms avg: {1} ms for #records: {2}", result.TotalMs,
+                              result.ItemAvgMs, ids.Count);
+            return result;
+        }
     }
 }

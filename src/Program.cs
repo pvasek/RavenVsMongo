@@ -18,17 +18,22 @@ namespace RavenVsMongo
             [NConsoler.Optional("Both", Description = "What you want to test: Both, Raven, Mongo")] string testMode,
             [NConsoler.Optional("100, 1000, 10000, 100000", Description = "Number of items that should be generated comma separated")] string itemsCounts,
             [NConsoler.Optional("1, 50, 100, 250, 500", Description = "Document sizes that should be generated comma separated")] string documentSizes,
-            [NConsoler.Optional(30000, Description = "Wait after generating items in ms (time for rebuilding indexes)")] int waitAfterGeneratingMs)
+            [NConsoler.Optional(60000, Description = "Wait after generating items in ms (time for rebuilding indexes)")] int waitAfterGeneratingMs,
+            [NConsoler.Optional(60000, Description = "Wait between reading items in ms")] int waitBetweenReadsMs,
+            [NConsoler.Optional("All", Description = "The mode of the test All, Read")] string testType)
         {
             TestSettings.WaitForRebuildIndexesMs = waitAfterGeneratingMs;
             TestSettings.TestMode = (TestMode)Enum.Parse(typeof(TestMode), testMode);
+            TestSettings.TestType = (TestType)Enum.Parse(typeof(TestType), testType);
             TestSettings.NumberOfCategoriesTested = 3;
             TestSettings.OutputFile = outputFile;
+            TestSettings.PauseBetweenReadsMs = waitBetweenReadsMs;
 
             var couns = itemsCounts.Split(',').Select(i => Int32.Parse(i.Trim())).ToArray();
             var sizes = documentSizes.Split(',').Select(i => Int32.Parse(i.Trim())).ToArray();
             RunRounds(couns, sizes);
         }
+
 
         private static void RunRounds(int[] itemSizes, int[] documentSizes)
         {
@@ -57,7 +62,15 @@ namespace RavenVsMongo
                 Console.WriteLine("RAVEN #########");
 
                 GC.Collect();
-                ravenResult = RavenTest.Run(databaseName, readCount: 1000, generateCount: itemsCount, bulkSize: 5000);
+
+                if (TestSettings.TestType == TestType.All)
+                {
+                    ravenResult = RavenTest.Run(databaseName, readCount: 1000, generateCount: itemsCount, bulkSize: 5000);
+                }
+                else
+                {
+                    ravenResult = RavenTest.RunReadTest(databaseName, readCount: 1000);
+                }
             }
 
             TestResultSet mongoResult = null;

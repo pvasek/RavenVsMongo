@@ -7,16 +7,18 @@ namespace RavenVsMongo
         public TestResultSet()
         {
             Write = new TestResult();
-            Read = new TestResult();
-            ReadRepeated = new TestResult();
+            Read1 = new TestResult();
+            Read2 = new TestResult();
+            Read3 = new TestResult();
             Categories = new List<TestResult>();
         }
 
         public long DeletingItemsMs { get; set; }
         public long CountItemsMs { get; set; }
         public TestResult Write { get; set; }
-        public TestResult Read { get; set; }
-        public TestResult ReadRepeated { get; set; }
+        public TestResult Read1 { get; set; }
+        public TestResult Read2 { get; set; }
+        public TestResult Read3 { get; set; }
         public List<TestResult> Categories { get; private set; }
 
     }

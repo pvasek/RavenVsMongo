@@ -43,8 +43,9 @@ namespace RavenVsMongo.Utils
             cols.Add("Type");
             cols.Add("Items Count");
             cols.Add("Document Size [kB]");
-            cols.Add("Read item avg [ms]");
-            cols.Add("Read repeated item avg [ms]");
+            cols.Add("Read item avg 1 [ms]");
+            cols.Add("Read item avg 2 [ms]");
+            cols.Add("Read item avg 3 [ms]");
             cols.Add("Read filtered item avg [ms]");
             cols.Add("Write item avg [ms]");
             cols.Add("Read count [ms]");
@@ -58,8 +59,9 @@ namespace RavenVsMongo.Utils
             cols.Add(name);
             cols.Add(itemsCount);
             cols.Add(documentSize);
-            cols.Add(result.Read.ItemAvgMs);
-            cols.Add(result.ReadRepeated.ItemAvgMs);
+            cols.Add(result.Read1.ItemAvgMs);
+            cols.Add(result.Read2.ItemAvgMs);
+            cols.Add(result.Read3.ItemAvgMs);
             cols.Add(result.Categories.Average(i => i.ItemAvgMs));
             cols.Add(result.Write.ItemAvgMs);
             cols.Add(result.CountItemsMs);
