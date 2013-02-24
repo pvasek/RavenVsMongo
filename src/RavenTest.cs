@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using Raven.Abstractions.Data;
@@ -15,11 +17,15 @@ namespace RavenVsMongo
 {
     public class RavenTest
     {
-        public static TestResultSet Run(int readCount, int? bulkSize = null, int? generateCount = null)
+        public static TestResultSet Run(string databaseName, int readCount, int? bulkSize = null, int? generateCount = null)
         {
             var result = new TestResultSet();
-
-            var documentStore = new DocumentStore { ConnectionStringName = "Raven"};
+            
+            var documentStore = new DocumentStore
+                {
+                    Url = ConfigurationManager.AppSettings["RavenUrl"], 
+                    DefaultDatabase = databaseName
+                };
             documentStore.JsonRequestFactory.ConfigureRequest += (sender, e) =>
             {
                 var httpWebRequest = ((System.Net.HttpWebRequest) e.Request);
@@ -43,12 +49,7 @@ namespace RavenVsMongo
             var generatedIds = new List<string>();
             #region generating
             if (generateCount != null && bulkSize != null)
-            {
-                using (Profiler.Start("Delete items"))
-                {
-                    documentStore.DatabaseCommands.DeleteByIndex(typeof (PersonList).Name, new IndexQuery(), true);
-                }
-
+            {                
                 var totalRecords = 0;
                 var generatingTotalTime = 0L;
 
@@ -57,7 +58,7 @@ namespace RavenVsMongo
                     //var items = Enumerable.Range(0, chunkSize).Select(PersonGenerator.Create).ToList();                    
 
                     time.Restart();
-                    using (var bulkInsert = documentStore.BulkInsert("test"))
+                    using (var bulkInsert = documentStore.BulkInsert())
                     {
                         for (var i = 0; i < chunkSize; i++)
                         {
@@ -137,7 +138,6 @@ namespace RavenVsMongo
                 result.ReadRepeated.Count = readCount;
                 result.ReadRepeated.TotalMs = totalTime.ElapsedMilliseconds;
                 Console.WriteLine("Reading repeated total time: {0} ms, avg item: {1} ms, #records: {2}", totalTime.ElapsedMilliseconds, totalTime.ElapsedMilliseconds / readCount, ids.Count);
-
             }
 
             using (var session = documentStore.OpenSession())
@@ -164,14 +164,25 @@ namespace RavenVsMongo
                 //CategoryCounts(session);
             }
 
-            if (generateCount != null && bulkSize != null)
+            Console.WriteLine("Deleting database...");
+            documentStore.DatabaseCommands.ForSystemDatabase().Delete("Raven/Databases/" + databaseName, null);
+            var dbDir = Path.Combine(ConfigurationManager.AppSettings["RavenDbPath"], databaseName);
+            documentStore.Dispose();
+            for (var i = 0; i < 20; i++)
             {
-                using (Profiler.Start("Delete items"))
+                Thread.Sleep(5000);
+                try
                 {
-                    documentStore.DatabaseCommands.DeleteByIndex(typeof(PersonList).Name, new IndexQuery(), true);
+                    Directory.Delete(dbDir);
+                    Console.WriteLine("Database deleted");
+                    break;
                 }
-                result.DeletingItemsMs = Profiler.LastTimeMs;
+                catch (Exception)
+                {
+                }
+                Console.WriteLine("Could not database database");
             }
+
             return result;
         }
 

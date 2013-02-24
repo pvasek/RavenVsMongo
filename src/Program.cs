@@ -28,10 +28,6 @@ namespace RavenVsMongo
             var couns = itemsCounts.Split(',').Select(i => Int32.Parse(i.Trim())).ToArray();
             var sizes = documentSizes.Split(',').Select(i => Int32.Parse(i.Trim())).ToArray();
             RunRounds(couns, sizes);
-
-            Console.WriteLine();
-            Console.WriteLine("Press enter to close the app.");
-            Console.ReadLine();
         }
 
         private static void RunRounds(int[] itemSizes, int[] documentSizes)
@@ -55,12 +51,13 @@ namespace RavenVsMongo
 
             PersonGenerator.ItemSizeKb = documentSizeKb;
             TestResultSet ravenResult = null;
+            string databaseName = string.Format("test_count_{0}_doc_size_{1}", itemsCount, documentSizeKb);
             if (TestSettings.TestRaven)
             {
                 Console.WriteLine("RAVEN #########");
 
                 GC.Collect();
-                ravenResult = RavenTest.Run(readCount: 500, generateCount: itemsCount, bulkSize: 5000);
+                ravenResult = RavenTest.Run(databaseName, readCount: 1000, generateCount: itemsCount, bulkSize: 5000);
             }
 
             TestResultSet mongoResult = null;
@@ -70,7 +67,7 @@ namespace RavenVsMongo
                 Console.WriteLine("MONGO #########");
 
                 GC.Collect();
-                mongoResult = MongoTest.Run(readCount: 500, generateCount: itemsCount, bulkSize: 5000);
+                mongoResult = MongoTest.Run(databaseName, readCount: 1000, generateCount: itemsCount, bulkSize: 5000);
             }
             return new Result
                 {

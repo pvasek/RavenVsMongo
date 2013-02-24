@@ -21,14 +21,14 @@ namespace RavenVsMongo
             BsonClassMap.RegisterClassMap(map);
         }
 
-        public static TestResultSet Run(int readCount, int? bulkSize = null, int? generateCount = null)
+        public static TestResultSet Run(string databaseName, int readCount, int? bulkSize = null, int? generateCount = null)
         {
             var result = new TestResultSet();
 
             Console.WriteLine("Initializing store...");
 
             var client = new MongoClient("mongodb://127.0.0.1/?safe=true");
-            var db = client.GetServer().GetDatabase("test_raven");
+            var db = client.GetServer().GetDatabase(databaseName);
             
             Console.WriteLine("Initialized.");
 
@@ -42,13 +42,7 @@ namespace RavenVsMongo
 
             var generatedIds = new List<string>();
             if (generateCount != null && bulkSize != null)
-            {
-                using (Profiler.Start("Delete items"))
-                {
-                    collection.RemoveAll();
-                }
-                result.DeletingItemsMs = Profiler.LastTimeMs;
-
+            {               
                 var totalRecords = 0;
                 var generatingTotalTime = 0L;
                 foreach (var chunkSize in ChunkUtils.GetChunks(generateCount.Value, bulkSize.Value))
@@ -69,9 +63,9 @@ namespace RavenVsMongo
                 }
                 result.Write.Count = generateCount;
                 result.Write.TotalMs = generatingTotalTime;
-                Console.WriteLine("Writing total time: {0} ms, avg item: {1} ms", generatingTotalTime,
-                                  generatingTotalTime / generateCount);
+                Console.WriteLine("Writing total time: {0} ms, avg item: {1} ms", generatingTotalTime, generatingTotalTime / generateCount);
 
+                Console.Write("Waiting for rebuilding indexes...");
                 Thread.Sleep(TestSettings.WaitForRebuildIndexesMs);
             }
 
@@ -129,13 +123,13 @@ namespace RavenVsMongo
                 time.Restart();
                 var list = collection.FindAll().AsQueryable().Where(i => i.CategoryId == category).ToList();//.Find(Query.EQ("CategoryId", category)).ToList();
                 time.Stop();
-                Console.WriteLine("Category: {0}, Total time: {1}, readed#: {2}, avg time: {3}", category, time.ElapsedMilliseconds, list.Count, time.ElapsedMilliseconds / list.Count);
+                Console.WriteLine("Category: {0}, Total time: {1}, readed#: {2}, avg time: {3}", category, time.ElapsedMilliseconds, list.Count,
+                    list.Count == 0 ? (object) null : time.ElapsedMilliseconds / list.Count);
                 result.Categories.Add(new TestResult{ Count = list.Count, TotalMs = time.ElapsedMilliseconds});
-                time.Restart();
-                list = list.Select(i => collection.FindOneById(i.Id)).ToList();
-                time.Stop();
-                Console.WriteLine("Category (by id): {0}, Total time: {1}, readed#: {2}, avg time: {3}", category, time.ElapsedMilliseconds, list.Count, time.ElapsedMilliseconds / list.Count);
             }
+
+            client.GetServer().DropDatabase(databaseName);
+
             return result;
         } 
     }

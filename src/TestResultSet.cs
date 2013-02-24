@@ -29,8 +29,8 @@ namespace RavenVsMongo
         {
             get
             {
-                if (Count == null)
-                    return null;
+                if (Count == null || Count == 0)
+                    return 0;
 
                 return TotalMs / Count;
             }
