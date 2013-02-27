@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using Raven.Abstractions.Data;
+using Raven.Client.Document;
 using RavenVsMongo.Utils;
 
 namespace RavenVsMongo
@@ -13,7 +16,7 @@ namespace RavenVsMongo
         }
 
         [NConsoler.Action]
-        public static void Run(
+        public static void Test(
             [NConsoler.Required(Description = "Output CSV file name")] string outputFile,
             [NConsoler.Optional("Both", Description = "What you want to test: Both, Raven, Mongo")] string testMode,
             [NConsoler.Optional("100, 1000, 10000, 100000", Description = "Number of items that should be generated comma separated")] string itemsCounts,
@@ -34,6 +37,77 @@ namespace RavenVsMongo
             RunRounds(couns, sizes);
         }
 
+        [NConsoler.Action]
+        public static void ReadTest([NConsoler.Required(Description = "The test database to read from")] string dbName)
+        {
+            const int readCount = 1000;
+            RavenTest.RunReadTest(dbName, readCount);
+        }
+
+        [NConsoler.Action]
+        public static void OrenWay([NConsoler.Required(Description = "The test database to read from")]string dbName)
+        {
+            var list = new List<string>();
+
+            using (var store = new DocumentStore
+            {
+                Url = "http://localhost:8080",
+                DefaultDatabase = dbName,
+            }.Initialize())
+            {
+                
+                var sp = Stopwatch.StartNew();
+                int start = 0;
+                while (true)
+                {
+                    var result = store.DatabaseCommands.Query("PersonList", new IndexQuery
+                    {
+                        FieldsToFetch = new[] { Constants.DocumentIdFieldName },
+                        PageSize = 1024,
+                        Start = start
+                    }, null);
+                    if (result.Results.Count == 0 || list.Count > 5000)
+                        break;
+                    start += result.Results.Count;
+                    list.AddRange(result.Results.Select(x => x.Value<string>(Constants.DocumentIdFieldName)));
+                }
+                sp.Stop();
+
+                Console.WriteLine("Read all ids {0:#,#} in {1:#,#} ms", list.Count, sp.ElapsedMilliseconds);
+
+                var rand = new Random();
+                list.Sort((s, s1) => rand.Next(-1, 1));
+                sp.Restart();
+
+                foreach (var id in list)
+                {
+                    store.DatabaseCommands.Get(id);
+                }
+
+                sp.Stop();
+                Console.WriteLine("Read all docs {0:#,#} in {1:#,#} ms, avg: {2}", list.Count, sp.ElapsedMilliseconds, sp.ElapsedMilliseconds / (decimal)list.Count);
+            }
+
+            using (var store = new DocumentStore
+                {
+                    Url = "http://localhost:8080",
+                    DefaultDatabase = dbName,
+                }.Initialize())
+            {
+                var rand = new Random();
+                list.Sort((s, s1) => rand.Next(-1, 1));
+                var sp = Stopwatch.StartNew();
+
+                foreach (var id in list)
+                {
+                    var a = store.DatabaseCommands.Get(id);
+                }
+
+                sp.Stop();
+                Console.WriteLine("Read all docs {0:#,#} in {1:#,#} ms, avg: {2}", list.Count, sp.ElapsedMilliseconds, sp.ElapsedMilliseconds / (decimal)list.Count);    
+            }
+            
+        }
 
         private static void RunRounds(int[] itemSizes, int[] documentSizes)
         {

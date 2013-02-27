@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using Raven.Abstractions.Data;
 using Raven.Client;
+using Raven.Client.Connection;
 using Raven.Client.Document;
 using Raven.Client.Indexes;
 using RavenVsMongo.Entities;
@@ -34,19 +35,19 @@ namespace RavenVsMongo
 
             using (var documentStore = CreateDocumentStore(databaseName))
             {
-                result.Read1 = ReadItemsById(documentStore, readCount, generatedIds);
+                result.Read1 = ReadItemsById(documentStore, generatedIds);
             }
 
             TestSettings.PauseBetweenReads();
             using (var documentStore = CreateDocumentStore(databaseName))
             {
-                result.Read2 = ReadItemsById(documentStore, readCount, generatedIds);
+                result.Read2 = ReadItemsById(documentStore, generatedIds);
             }
 
             TestSettings.PauseBetweenReads();
             using (var documentStore = CreateDocumentStore(databaseName))
             {
-                result.Read3 = ReadItemsById(documentStore, readCount, generatedIds);
+                result.Read3 = ReadItemsById(documentStore, generatedIds);
             }
 
             using (var documentStore = CreateDocumentStore(databaseName))
@@ -60,9 +61,10 @@ namespace RavenVsMongo
                         time.Restart();
                         var list = session.Query<Person>().Where(i => i.CategoryId == category).Take(5000).ToList();
                         time.Stop();
-                        result.Categories.Add(new TestResult { Count = list.Count, TotalMs = time.ElapsedMilliseconds });
+                        var categoryResult = new TestResult {Count = list.Count, TotalMs = time.ElapsedMilliseconds};
+                        result.Categories.Add(categoryResult);
                         Console.WriteLine("Category: {0}, Total time: {1}, readed#: {2}, avg time: {3}", category,
-                                          time.ElapsedMilliseconds, list.Count, time.ElapsedMilliseconds / list.Count);
+                                          categoryResult.TotalMs, categoryResult.Count, categoryResult.ItemAvgMs);
                     }
                 }
             }
@@ -108,31 +110,20 @@ namespace RavenVsMongo
         {
             var result = new TestResultSet();
             var ids = new List<string>();
-            using (var documentStore = CreateDocumentStore(databaseName))
+            using (var documentStore = CreateDocumentStore(databaseName, false))
             {
-                result.CountItemsMs = ReadDocumentIds(documentStore, ids);
+                result.CountItemsMs = ReadDocumentIds(documentStore, ids, readCount);
             }
             
-            using (var documentStore = CreateDocumentStore(databaseName))
+            using (var documentStore = CreateDocumentStore(databaseName, false))
             {
-                result.Read1 = ReadItemsById(documentStore, readCount, ids);
+                result.Read1 = ReadItemsById(documentStore, ids);
             }
-
-            TestSettings.PauseBetweenReads();
-            using (var documentStore = CreateDocumentStore(databaseName))
-            {
-                result.Read2 = ReadItemsById(documentStore, readCount, ids);
-            }
-
-            TestSettings.PauseBetweenReads();
-            using (var documentStore = CreateDocumentStore(databaseName))
-            {
-                result.Read3 = ReadItemsById(documentStore, readCount, ids);
-            }
+            
             return result;
         }
 
-        private static long ReadDocumentIds(DocumentStore documentStore, List<string> ids)
+        private static long ReadDocumentIds(DocumentStore documentStore, List<string> ids, int? maxIds = null)
         {
             int start = 0;
             var time = Stopwatch.StartNew();
@@ -144,7 +135,7 @@ namespace RavenVsMongo
                         PageSize = 1024,
                         Start = start
                     }, null);
-                if (resultIds.Results.Count == 0)
+                if (resultIds.Results.Count == 0 || maxIds != null && ids.Count > maxIds.Value)
                     break;
                 start += resultIds.Results.Count;
                 ids.AddRange(resultIds.Results.Select(x => x.Value<string>(Constants.DocumentIdFieldName)));
@@ -154,22 +145,26 @@ namespace RavenVsMongo
             return time.ElapsedMilliseconds;
         }
 
-        private static TestResult ReadItemsById(DocumentStore documentStore, int readCount, List<string> generatedIds)
+        private static TestResult ReadItemsById(DocumentStore documentStore, List<string> generatedIds)
         {
             var ids = generatedIds.TakeRandom().ToList();
             var time = Stopwatch.StartNew();
             foreach (var id in ids)
             {
-                documentStore.DatabaseCommands.Get(id);
+                var jsonDocument = documentStore.DatabaseCommands.Get(id);
+                // we need to convert it to entity to do the same level of work as mongo test
+                var p = jsonDocument.DataAsJson.Deserialize<Person>(documentStore.Conventions);
+                if (p.Id != null)
+                    throw new ArgumentException();
             }
             time.Stop();
-            var result = new TestResult { Count = readCount, TotalMs = time.ElapsedMilliseconds };
+            var result = new TestResult { Count = ids.Count, TotalMs = time.ElapsedMilliseconds };
             Console.WriteLine("Reading total time: {0} ms, avg item: {1} ms, #records: {2}",
                               result.TotalMs, result.ItemAvgMs, ids.Count);
             return result;
         }
 
-        private static DocumentStore CreateDocumentStore(string databaseName)
+        private static DocumentStore CreateDocumentStore(string databaseName, bool createIndexes = true)
         {
             var documentStore = new DocumentStore
                 {
@@ -188,9 +183,12 @@ namespace RavenVsMongo
             {
                 documentStore.Initialize();
             }
-            using (Profiler.Start("Creating indexes"))
+            if (createIndexes)
             {
-                IndexCreation.CreateIndexes(typeof(Program).Assembly, documentStore);
+                using (Profiler.Start("Creating indexes"))
+                {
+                    IndexCreation.CreateIndexes(typeof (Program).Assembly, documentStore);
+                }
             }
             return documentStore;
         }
